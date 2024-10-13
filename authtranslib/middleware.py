@@ -2,15 +2,12 @@ import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.utils.deprecation import MiddlewareMixin
 from datetime import datetime, timedelta
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
 import logging
 
 logger = logging.getLogger(__name__)
-
-
 User = get_user_model()
 
 class GuestUser:
@@ -22,11 +19,21 @@ class GuestUser:
     def __str__(self):
         return 'Guest User'
 
+class JWTAuthenticationMiddleware:
+    """JWT middleware for authenticating users or creating guest tokens."""
+    def __init__(self, get_response):
+        self.get_response = get_response
 
-class JWTAuthenticationMiddleware(MiddlewareMixin):
+    def __call__(self, request):
+        """Process incoming request and add the user based on JWT."""
+        self.process_request(request)
+        response = self.get_response(request)
+        self.process_response(request, response)
+        return response
+
     def process_request(self, request):
-        logger.debug('------------------------------- KILLOOO SI QUIERA ENTRAS AQUI???? -------------------------------------------------------------------')
-        """Process every request and ensure that a valid JWT token is available."""
+        """Handle the request before it reaches the view."""
+        logger.debug('JWT Middleware - Processing Request ---------------------------------------------------------------')
         auth_header = request.headers.get('Authorization')
 
         if not auth_header or not auth_header.startswith('Bearer '):
@@ -52,8 +59,8 @@ class JWTAuthenticationMiddleware(MiddlewareMixin):
             request.user = self.create_guest_user()
 
     def process_response(self, request, response):
-        logger.info("JWTAuthenticationMiddleware process_response called -----------------------------------------------")
-        """Ensure a valid token is always in the response, especially for guest users."""
+        """Modify the response, setting a token for guest users if needed."""
+        logger.debug('JWT Middleware - Processing Response')
         if not hasattr(request, 'user') or isinstance(request.user, GuestUser):
             # If user is a guest or user is missing, generate guest token
             guest_token = self.generate_guest_token()
@@ -62,13 +69,11 @@ class JWTAuthenticationMiddleware(MiddlewareMixin):
         return response
 
     def create_guest_user(self):
-        logger.info("JWTAuthenticationMiddleware process_response called !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11")
         """Create a guest user (user_id=0)."""
         return GuestUser()
 
     def generate_guest_token(self):
         """Generate a JWT for the guest user."""
-        logger.info("JWTAuthenticationMiddleware process_response called !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!@3123124125")
         guest_payload = {
             'user_id': 0,
             'exp': datetime.utcnow() + timedelta(hours=24),  # Guest token expires in 24 hours
@@ -76,6 +81,8 @@ class JWTAuthenticationMiddleware(MiddlewareMixin):
             'role': 'guest'
         }
         return jwt.encode(guest_payload, settings.SECRET_KEY, algorithm='HS256')
+
+
 
 from functools import wraps
 from django.http import JsonResponse
