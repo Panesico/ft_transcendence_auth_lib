@@ -52,6 +52,7 @@ class JWTAuthenticationMiddleware(MiddlewareMixin):
             request.user = self.create_guest_user()
 
     def process_response(self, request, response):
+        logger.info("JWTAuthenticationMiddleware process_response called -----------------------------------------------")
         """Ensure a valid token is always in the response, especially for guest users."""
         if not hasattr(request, 'user') or isinstance(request.user, GuestUser):
             # If user is a guest or user is missing, generate guest token
@@ -61,11 +62,13 @@ class JWTAuthenticationMiddleware(MiddlewareMixin):
         return response
 
     def create_guest_user(self):
+        logger.info("JWTAuthenticationMiddleware process_response called !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11")
         """Create a guest user (user_id=0)."""
         return GuestUser()
 
     def generate_guest_token(self):
         """Generate a JWT for the guest user."""
+        logger.info("JWTAuthenticationMiddleware process_response called !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!@3123124125")
         guest_payload = {
             'user_id': 0,
             'exp': datetime.utcnow() + timedelta(hours=24),  # Guest token expires in 24 hours
