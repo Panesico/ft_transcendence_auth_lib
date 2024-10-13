@@ -2,13 +2,8 @@ import jwt
 from django.conf import settings
 from django.utils.deprecation import MiddlewareMixin
 from django.http import JsonResponse
+from django.contrib.auth.models import AnonymousUser
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
-
-class GuestUser:
-    def __init__(self):
-        self.user_id = 0
-        self.is_authenticated = False
-        self.role = 'guest'
 
 class JWTAuthenticationMiddleware(MiddlewareMixin):
     def process_request(self, request):
@@ -25,19 +20,19 @@ class JWTAuthenticationMiddleware(MiddlewareMixin):
                     settings.SECRET_KEY,
                     algorithms=["HS256"]
                 )
-                decoded_data['is_authenticated'] = True
-                request.user = decoded_data  # For authenticated users, set the user info
+                decoded_data['is_authenticated'] = True  # Indicate that this user is authenticated
+                request.user = decoded_data  # Set request.user to the decoded JWT payload
 
             except (ExpiredSignatureError, InvalidTokenError):
-                # Token is invalid or expired, treat as guest
-                request.user = GuestUser()
+                # Token is invalid or expired, treat as guest/anonymous
+                request.user = AnonymousUser()
         else:
-            # No valid token, treat as guest
-            request.user = GuestUser()
+            # No valid token, treat as guest/anonymous
+            request.user = AnonymousUser()
 
     def process_response(self, request, response):
         # Automatically issue a guest token if no valid token was provided
-        if isinstance(request.user, GuestUser):
+        if isinstance(request.user, AnonymousUser):
             guest_token = self.generate_guest_token()
             response['Authorization'] = f'Bearer {guest_token}'
         
@@ -50,7 +45,6 @@ class JWTAuthenticationMiddleware(MiddlewareMixin):
             'role': 'guest'
         }
         return jwt.encode(guest_payload, settings.SECRET_KEY, algorithm='HS256')
-
 
 from functools import wraps
 from django.http import JsonResponse
