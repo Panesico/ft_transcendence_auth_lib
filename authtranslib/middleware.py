@@ -2,7 +2,6 @@ import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from datetime import datetime, timedelta
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
 import logging
