@@ -54,3 +54,14 @@ def login_required(view_func):
         return view_func(request, *args, **kwargs)
 
     return _wrapped_view
+
+class AdminSessionMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.path.startswith('/admin/'):
+            from django.contrib.sessions.middleware import SessionMiddleware
+            session_middleware = SessionMiddleware(self.get_response)
+            return session_middleware(request)
+        return self.get_response(request)

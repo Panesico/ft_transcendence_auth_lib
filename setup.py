@@ -19,8 +19,8 @@ setup(
     long_description_content_type="text/markdown",
     long_description=LONG_DESCRIPTION,
     packages=find_packages(),
-    install_requires=['pyjwt'],
-    keywords=['python', 'auth'],
+    install_requires=['pyjwt', 'django'],
+    keywords=['python', 'auth', 'django'],
     classifiers=[
         "Development Status :: 1 - Planning",
         "Intended Audience :: Developers",
