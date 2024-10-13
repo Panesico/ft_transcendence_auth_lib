@@ -6,6 +6,10 @@ from django.utils.deprecation import MiddlewareMixin
 from datetime import datetime, timedelta
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 User = get_user_model()
 
@@ -21,6 +25,7 @@ class GuestUser:
 
 class JWTAuthenticationMiddleware(MiddlewareMixin):
     def process_request(self, request):
+        logger.debug('------------------------------- KILLOOO SI QUIERA ENTRAS AQUI???? -------------------------------------------------------------------')
         """Process every request and ensure that a valid JWT token is available."""
         auth_header = request.headers.get('Authorization')
 
