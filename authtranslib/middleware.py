@@ -19,27 +19,30 @@ class JWTAuthenticationMiddleware(MiddlewareMixin):
                     settings.SECRET_KEY,
                     algorithms=["HS256"]
                 )
-
-                # Populate request.user with the decoded information
                 request.user = decoded_data
-
-            except ExpiredSignatureError:
-                return JsonResponse(
-                    {'error': 'Token has expired'},
-                    status=401
-                )
-            except InvalidTokenError:
-                return JsonResponse(
-                    {'error': 'Invalid token'},
-                    status=401
-                )
+            except (ExpiredSignatureError, InvalidTokenError):
+                # Token is invalid or expired, treat as guest
+                request.user = {'user_id': 0}
         else:
-            request.user = None
-
-        # If no token is provided or the token is invalid, request.user will remain None
+            # No valid token, treat as guest
+            request.user = {'user_id': 0}
 
     def process_response(self, request, response):
+        # Automatically issue a guest token if no valid token was provided
+        if request.user and request.user.get('user_id') == 0:
+            guest_token = self.generate_guest_token()
+            response['Authorization'] = f'Bearer {guest_token}'
+        
         return response
+
+    def generate_guest_token(self):
+        # Generate a JWT for a guest user with user_id = 0
+        guest_payload = {
+            'user_id': 0,
+            'role': 'guest'
+        }
+        return jwt.encode(guest_payload, settings.SECRET_KEY, algorithm='HS256')
+
 
 
 from functools import wraps
