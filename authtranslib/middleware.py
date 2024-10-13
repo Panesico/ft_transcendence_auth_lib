@@ -2,44 +2,61 @@ import jwt
 from django.conf import settings
 from django.utils.deprecation import MiddlewareMixin
 from django.http import JsonResponse
-from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth import get_user_model
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
+from django.core.exceptions import ObjectDoesNotExist
+
+# Import your custom user model
+User = get_user_model()
+
+class GuestUser:
+    """A simple class to represent a guest user."""
+    def __init__(self):
+        self.user_id = 0
+        self.is_authenticated = False
+
+    def __str__(self):
+        return 'Guest User'
 
 class JWTAuthenticationMiddleware(MiddlewareMixin):
     def process_request(self, request):
-        # Extract the JWT token from the Authorization header
+        """Process incoming requests to validate JWT tokens."""
         auth_header = request.headers.get('Authorization')
 
-        if auth_header and auth_header.startswith('Bearer '):
-            token = auth_header.split('Bearer ')[1]
+        # If there's no token, treat the user as a guest
+        if not auth_header or not auth_header.startswith('Bearer '):
+            request.user = GuestUser()
+            return
 
-            try:
-                # Decode the token using the secret key and algorithm
-                decoded_data = jwt.decode(
-                    token,
-                    settings.SECRET_KEY,
-                    algorithms=["HS256"]
-                )
-                decoded_data['is_authenticated'] = True  # Indicate that this user is authenticated
-                request.user = decoded_data  # Set request.user to the decoded JWT payload
+        # Extract the JWT token from the Authorization header
+        token = auth_header.split('Bearer ')[1]
 
-            except (ExpiredSignatureError, InvalidTokenError):
-                # Token is invalid or expired, treat as guest/anonymous
-                request.user = AnonymousUser()
-        else:
-            # No valid token, treat as guest/anonymous
-            request.user = AnonymousUser()
+        try:
+            # Decode the JWT token using the secret key and HS256 algorithm
+            decoded_data = jwt.decode(
+                token,
+                settings.SECRET_KEY,
+                algorithms=["HS256"]
+            )
+            # Get the user from the database using the user_id from the JWT
+            user = User.objects.get(pk=decoded_data['user_id'])
+            # Assign the authenticated user to request.user
+            request.user = user
+
+        except (ExpiredSignatureError, InvalidTokenError, ObjectDoesNotExist):
+            # Handle expired, invalid token, or non-existent user (guest user)
+            request.user = GuestUser()
 
     def process_response(self, request, response):
-        # Automatically issue a guest token if no valid token was provided
-        if isinstance(request.user, AnonymousUser):
+        """Ensure that responses always include a valid token for guest users."""
+        if isinstance(request.user, GuestUser):
             guest_token = self.generate_guest_token()
             response['Authorization'] = f'Bearer {guest_token}'
-        
+
         return response
 
     def generate_guest_token(self):
-        # Generate a JWT for a guest user with user_id = 0
+        """Generate a JWT for the guest user with user_id = 0."""
         guest_payload = {
             'user_id': 0,
             'role': 'guest'
